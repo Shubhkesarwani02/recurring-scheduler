@@ -214,10 +214,6 @@ recurring-scheduler/
 - **Exception-based updates** - Modifications create exceptions, preserving the original pattern
 - **Optimistic UI** - Immediate feedback with rollback on errors
 
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started.
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
