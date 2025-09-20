@@ -1,16 +1,14 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
   "framework": "nextjs",
+  "buildCommand": "npm run build",
   "installCommand": "npm ci",
+  "outputDirectory": ".next",
   "functions": {
-    "app/**": {
+    "app/**/*.{js,jsx,ts,tsx}": {
       "maxDuration": 30
     }
   },
-  "build": {
-    "env": {
-      "SKIP_ENV_VALIDATION": "1"
-    }
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
   }
 }
