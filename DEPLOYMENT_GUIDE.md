@@ -170,6 +170,14 @@ If you encounter TypeScript errors during build like "Could not find a declarati
 - Verify `NEXT_PUBLIC_API_URL` points to your backend
 - Check browser console for API errors
 
+#### Webpack Build Errors on Vercel:
+If you encounter webpack build errors like "Build failed because of webpack errors":
+- Ensure `next.config.mjs` has proper webpack fallbacks configured
+- Check that `vercel.json` is properly configured for Next.js
+- Verify all environment variables are set in Vercel dashboard
+- Try redeploying after clearing Vercel's build cache
+- Consider upgrading to Vercel Pro if hitting memory limits
+
 ### Database Issues:
 - Verify Neon database connection string
 - Check if migrations completed successfully
