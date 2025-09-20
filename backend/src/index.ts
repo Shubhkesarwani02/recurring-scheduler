@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/slots', slotRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (req: express.Request, res: express.Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -34,7 +34,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // ✅ 404 handler (no path, catches all unmatched routes)
-app.use((req, res) => {
+app.use((req: express.Request, res: express.Response) => {
   res.status(404).json({
     error: 'Route not found'
   });
