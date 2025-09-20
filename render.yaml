@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: recurring-scheduler-frontend
+    env: node
+    plan: free
+    repo: https://github.com/Shubhkesarwani02/recurring-scheduler
+    branch: main
+    buildCommand: cd frontend && npm ci && npm run build
+    startCommand: cd frontend && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+  - type: web
+    name: recurring-scheduler-backend
+    env: node
+    plan: free
+    repo: https://github.com/Shubhkesarwani02/recurring-scheduler
+    branch: main
+    buildCommand: cd backend && npm ci && npm run build
+    startCommand: cd backend && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://recurring-scheduler-frontend.onrender.com
+      # Add database URL and secrets in Render dashboard, e.g. DATABASE_URL, JWT_SECRET
