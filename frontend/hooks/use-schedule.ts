@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { SlotApiService, DateUtils } from '@/lib/api'
+import { useAuthenticatedApi } from './use-authenticated-api'
+import { DateUtils } from '@/lib/api'
 import { TimeSlot, SlotCreateRequest, SlotUpdateRequest } from '@/types/slot'
 import { useToast } from '@/hooks/use-toast'
 
@@ -23,14 +24,22 @@ export function useSchedule(): UseScheduleResult {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dateErrors, setDateErrors] = useState<Map<string, string>>(new Map())
+  const [loadingWeeks, setLoadingWeeks] = useState<Set<string>>(new Set()) // Track which weeks are currently loading
   const { toast } = useToast()
+  const api = useAuthenticatedApi()
 
   const loadWeek = useCallback(async (weekStart: string) => {
+    // Prevent concurrent loading of the same week
+    if (loadingWeeks.has(weekStart)) {
+      return
+    }
+
+    setLoadingWeeks(prev => new Set(prev).add(weekStart))
     setIsLoading(true)
     setError(null)
     
     try {
-      const weekSlots = await SlotApiService.getSlotsForWeek(weekStart)
+      const weekSlots = await api.getSlotsForWeek(weekStart)
       setSlots(weekSlots)
       setDateErrors(new Map()) // Clear previous errors
     } catch (err) {
@@ -43,8 +52,13 @@ export function useSchedule(): UseScheduleResult {
       })
     } finally {
       setIsLoading(false)
+      setLoadingWeeks(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(weekStart)
+        return newSet
+      })
     }
-  }, [toast])
+  }, [toast, api]) // Remove loadingWeeks from dependencies to prevent recreation
 
   const createSlot = useCallback(async (slotData: SlotCreateRequest) => {
     setError(null)
@@ -63,7 +77,7 @@ export function useSchedule(): UseScheduleResult {
     setSlots(prev => [...prev, optimisticSlot])
     
     try {
-      const newSlot = await SlotApiService.createSlot(slotData)
+      const newSlot = await api.createSlot(slotData)
       
       // Replace optimistic slot with real slot
       setSlots(prev => prev.filter(slot => slot.id !== tempId))
@@ -89,7 +103,7 @@ export function useSchedule(): UseScheduleResult {
       })
       throw err
     }
-  }, [loadWeek, toast])
+  }, [loadWeek, toast, api])
 
   const updateSlot = useCallback(async (id: string, update: SlotUpdateRequest) => {
     setError(null)
@@ -109,7 +123,7 @@ export function useSchedule(): UseScheduleResult {
     setSlots(prev => prev.map(slot => slot.id === id ? updatedSlot : slot))
     
     try {
-      const result = await SlotApiService.updateSlot(id, update)
+      const result = await api.updateSlot(id, update)
       
       // Update with server response
       setSlots(prev => prev.map(slot => slot.id === id ? result : slot))
@@ -131,7 +145,7 @@ export function useSchedule(): UseScheduleResult {
       })
       throw err
     }
-  }, [slots, toast])
+  }, [slots, toast, api])
 
   const deleteSlot = useCallback(async (id: string, date: string) => {
     setError(null)
@@ -144,7 +158,7 @@ export function useSchedule(): UseScheduleResult {
     setSlots(prev => prev.filter(slot => slot.id !== id))
     
     try {
-      await SlotApiService.deleteSlot(id, { date })
+      await api.deleteSlot(id, { date })
       
       toast({
         title: "Slot deleted",
@@ -163,7 +177,7 @@ export function useSchedule(): UseScheduleResult {
       })
       throw err
     }
-  }, [slots, toast])
+  }, [slots, toast, api])
 
   const getSlotsForDate = useCallback((date: Date): TimeSlot[] => {
     const dateStr = DateUtils.formatDate(date)
@@ -180,11 +194,11 @@ export function useSchedule(): UseScheduleResult {
     return dateErrors.get(dateStr) || null
   }, [dateErrors])
 
-  // Load current week on mount
+  // Load current week on mount only
   useEffect(() => {
     const weekStart = DateUtils.getWeekStart(new Date())
     loadWeek(weekStart)
-  }, [loadWeek])
+  }, []) // Remove loadWeek from dependencies to prevent infinite loop
 
   return {
     slots,

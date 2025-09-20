@@ -1,10 +1,13 @@
 import { Knex } from 'knex';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const config: Knex.Config = {
   client: 'postgresql',
   connection: {
-    connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_5VYfzAoLbyJ1@ep-old-credit-aebcivqu-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
-    ssl: { rejectUnauthorized: false }
+    connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/recurring_scheduler',
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   },
   pool: {
     min: 2,
@@ -12,7 +15,8 @@ const config: Knex.Config = {
   },
   migrations: {
     tableName: 'knex_migrations',
-    directory: './migrations'
+    directory: './migrations',
+    extension: 'ts'
   }
 };
 

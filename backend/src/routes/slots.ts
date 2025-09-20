@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { SlotController } from '../controllers/slotController';
+import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
+
+// Add optional auth middleware (for development, can be made required later)
+router.use(optionalAuth);
 
 // GET /slots?weekStart=YYYY-MM-DD - get slots for a week
 router.get('/', SlotController.getSlots);

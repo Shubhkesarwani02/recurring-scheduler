@@ -8,6 +8,8 @@ A full-stack application for managing weekly recurring schedules with exception 
 
 ## 🚀 Features
 
+- ✅ **User Authentication** with Clerk (Sign in/Sign up)
+- ✅ **Protected Routes** with middleware-based authentication
 - ✅ Weekly calendar view with infinite scroll
 - ✅ Max 2 slots per day enforcement
 - ✅ Recurring slot patterns (weekly)
@@ -20,15 +22,17 @@ A full-stack application for managing weekly recurring schedules with exception 
 
 ## 🏗️ Architecture
 
-- **Frontend**: Next.js 14+ with TypeScript, Tailwind CSS, and shadcn/ui components
+- **Frontend**: Next.js 14+ with TypeScript, Tailwind CSS, shadcn/ui components, and Clerk authentication
 - **Backend**: Node.js with Express, TypeScript, and Knex query builder
 - **Database**: PostgreSQL (Neon platform)
+- **Authentication**: Clerk for user management and JWT tokens
 
 ## 📋 Prerequisites
 
 - Node.js >= 18.0.0
 - npm >= 8.0.0
 - PostgreSQL database (Neon recommended)
+- Clerk account for authentication (free tier available)
 
 ## 🛠️ Quick Start
 
@@ -63,11 +67,37 @@ FRONTEND_URL=http://localhost:3000
 # Copy the example environment file
 cp frontend/.env.example frontend/.env.local
 
-# Update if needed (default should work):
+# Update frontend/.env.local with your credentials:
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
+
+# Clerk Authentication (get these from your Clerk Dashboard)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
+CLERK_SECRET_KEY=your_clerk_secret_key_here
+
+# Optional: Custom URLs
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 ```
 
-### 4. Database Setup
+### 4. Clerk Authentication Setup
+
+1. **Create a Clerk Account:**
+   - Go to [clerk.com](https://clerk.com) and create a free account
+   - Create a new application in your Clerk Dashboard
+
+2. **Get your API Keys:**
+   - In your Clerk Dashboard, go to "API Keys"
+   - Copy your "Publishable Key" and "Secret Key"
+   - Add them to your `frontend/.env.local` file
+
+3. **Configure Authentication:**
+   - The app uses Clerk's default hosted authentication
+   - Users will be redirected to Clerk's sign-in/sign-up pages
+   - After authentication, they'll be redirected to `/dashboard`
+
+### 5. Database Setup
 
 Ensure your PostgreSQL database has the required tables. The schema is automatically handled by the application, but you can manually create them:
 
@@ -100,7 +130,7 @@ CREATE INDEX idx_slots_day_of_week ON slots(day_of_week);
 CREATE INDEX idx_exceptions_date ON exceptions(date);
 ```
 
-### 5. Start Development Servers
+### 6. Start Development Servers
 
 **Option 1: Start both servers simultaneously**
 ```bash
@@ -116,7 +146,7 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
-### 6. Access the Application
+### 7. Access the Application
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000/api

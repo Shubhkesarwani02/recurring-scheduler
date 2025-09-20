@@ -39,7 +39,7 @@ export function ScheduleCalendar() {
   useEffect(() => {
     const weekStartStr = DateUtils.getWeekStart(currentWeek)
     loadWeek(weekStartStr)
-  }, [currentWeek, loadWeek])
+  }, [currentWeek]) // Remove loadWeek from dependencies to prevent infinite loop
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     setCurrentWeek(prev => direction === 'next' ? addWeeks(prev, 1) : subWeeks(prev, 1))
