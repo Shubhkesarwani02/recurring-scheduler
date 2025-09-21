@@ -168,19 +168,30 @@ export class SlotService {
   
   private static generateWeekDates(weekStart: string): string[] {
     const dates: string[] = [];
-    const startDate = new Date(weekStart + 'T00:00:00.000Z');
+    
+    // Parse the date as IST to avoid timezone shifts
+    const [year, month, day] = weekStart.split('-').map(Number);
+    // Create date at IST midnight (UTC + 5:30)
+    const startDate = new Date(year, month - 1, day);
     
     for (let i = 0; i < 7; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
+      
+      // Format as YYYY-MM-DD without timezone conversion
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      dates.push(`${year}-${month}-${day}`);
     }
     
     return dates;
   }
   
   private static getDayOfWeekFromDate(dateStr: string): number {
-    const date = new Date(dateStr + 'T00:00:00.000Z');
+    // Parse date in local timezone (IST) to avoid shifts
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
   }
 }

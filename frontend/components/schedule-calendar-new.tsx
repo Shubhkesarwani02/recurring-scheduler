@@ -3,14 +3,11 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { DaySlot } from "@/components/day-slot-enhanced"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScheduleSkeleton } from "@/components/ui/skeleton"
 import { 
-  Menu, 
-  Home, 
   Calendar, 
-  ChevronDown, 
   ChevronLeft, 
   ChevronRight, 
   Plus,
@@ -103,9 +100,10 @@ export function ScheduleCalendar() {
     return { date, slots: daySlots }
   }
 
-  // Calculate stats
+  // Calculate stats with IST-aware date handling
   const totalSlots = slots.length
-  const todaySlots = getSlotsForDate(new Date()).length
+  const todayIST = DateUtils.getTodayIST()
+  const todaySlots = slots.filter(slot => slot.date === todayIST).length
   const upcomingSlots = weekDates.reduce((acc, date) => acc + getSlotsForDate(date).length, 0)
 
   // Show skeleton loading state

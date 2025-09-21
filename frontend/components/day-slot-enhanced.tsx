@@ -10,12 +10,12 @@ import {
   AlertCircle, 
   Edit3, 
   Clock, 
-  Calendar as CalendarIcon,
-  CheckCircle2
+  Calendar as CalendarIcon
 } from "lucide-react"
 import { format } from "date-fns"
 import { TimePicker } from "@/components/time-picker-enhanced"
 import { TimeSlot } from "@/types/slot"
+import { DateUtils } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -46,7 +46,9 @@ export function DaySlot({
   const [isLoading, setIsLoading] = useState<string | null>(null)
 
   const { date, slots } = daySchedule
-  const isToday = date.toDateString() === new Date().toDateString()
+  
+  // Use IST-aware date comparison for today
+  const isToday = DateUtils.isToday(DateUtils.formatDate(date))
 
   const handleAddSlot = () => {
     if (canAddSlot) {

@@ -8,6 +8,17 @@ import {
 } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
+import { ErrorBoundary, GlobalErrorHandler } from "@/components/error-handler";
+
+// Error boundary component for Analytics
+function SafeAnalytics() {
+  try {
+    return <Analytics />;
+  } catch (error) {
+    console.warn('Analytics failed to load:', error);
+    return null;
+  }
+}
 
 export const metadata: Metadata = {
   title: "Recurring Scheduler",
@@ -28,25 +39,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
+    >
       <html lang="en" suppressHydrationWarning>
         <body
           className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}
         >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Header />
-            
-            <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-              {children}
-            </main>
-            
-            <Analytics />
-          </ThemeProvider>
+          <ErrorBoundary>
+            <GlobalErrorHandler>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <Header />
+                
+                <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+                  {children}
+                </main>
+                
+                <SafeAnalytics />
+              </ThemeProvider>
+            </GlobalErrorHandler>
+          </ErrorBoundary>
         </body>
       </html>
     </ClerkProvider>

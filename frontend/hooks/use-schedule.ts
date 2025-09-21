@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthenticatedApi } from './use-authenticated-api'
-import { DateUtils } from '@/lib/api'
+import { DateUtils, SlotApiError } from '@/lib/api'
+import { SlotValidator } from '@/lib/validation'
 import { TimeSlot, SlotCreateRequest, SlotUpdateRequest } from '@/types/slot'
 import { useToast } from '@/hooks/use-toast'
 
@@ -16,6 +17,7 @@ interface UseScheduleResult {
   deleteSlot: (id: string, date: string) => Promise<void>
   getSlotsForDate: (date: Date) => TimeSlot[]
   canAddSlot: (date: Date) => boolean
+  canAddSlotAtTime: (date: Date, startTime: string, endTime: string) => { canAdd: boolean; reason?: string }
   getErrorForDate: (date: Date) => string | null
 }
 
@@ -58,14 +60,61 @@ export function useSchedule(): UseScheduleResult {
         return newSet
       })
     }
-  }, [toast, api]) // Remove loadingWeeks from dependencies to prevent recreation
+  }, [toast, api, loadingWeeks])
 
   const createSlot = useCallback(async (slotData: SlotCreateRequest) => {
     setError(null)
     
+    // Client-side validation before API call
+    const existingSlotsForDay = slots.filter(slot => {
+      // Get the day of week for the slot's date or use the requested day
+      const slotDate = new Date(slot.date)
+      const slotDayOfWeek = slotDate.getDay()
+      return slotDayOfWeek === slotData.day_of_week
+    })
+    
+    const validationResult = SlotValidator.validateSlotCreation(
+      slotData.start_time,
+      slotData.end_time,
+      slotData.day_of_week,
+      existingSlotsForDay,
+      {
+        maxSlotsPerDay: 2,
+        enforceBusinessHours: true
+      }
+    )
+    
+    if (!validationResult.isValid) {
+      const errorMessage = validationResult.userMessage || validationResult.error || 'Invalid slot data'
+      setError(errorMessage)
+      
+      // Determine toast title based on error type
+      let toastTitle = "Validation Error"
+      if (validationResult.error?.includes('conflicts with existing slot')) {
+        toastTitle = "Time Conflict"
+      } else if (validationResult.error?.includes('Maximum 2 slots per day')) {
+        toastTitle = "Daily Limit Reached"
+      } else if (validationResult.error?.includes('time range')) {
+        toastTitle = "Invalid Time Range"
+      } else if (validationResult.error?.includes('business hours')) {
+        toastTitle = "Outside Business Hours"
+      }
+      
+      toast({
+        title: toastTitle,
+        description: errorMessage,
+        variant: "destructive",
+      })
+      
+      // Create a validation error to throw
+      const validationError = new Error(errorMessage)
+      validationError.name = 'ValidationError'
+      throw validationError
+    }
+    
     // Optimistic update - add temporary slot
     const tempId = `temp-${Date.now()}`
-    const tempDate = DateUtils.formatDate(new Date()) // Today for now, will be improved
+    const tempDate = DateUtils.getTodayIST() // Use IST for today's date
     const optimisticSlot: TimeSlot = {
       id: tempId,
       date: tempDate,
@@ -77,9 +126,9 @@ export function useSchedule(): UseScheduleResult {
     setSlots(prev => [...prev, optimisticSlot])
     
     try {
-      const newSlot = await api.createSlot(slotData)
+      await api.createSlot(slotData)
       
-      // Replace optimistic slot with real slot
+      // Replace optimistic slot with real slot by reloading
       setSlots(prev => prev.filter(slot => slot.id !== tempId))
       
       // Reload the current week to get all slots properly
@@ -94,16 +143,42 @@ export function useSchedule(): UseScheduleResult {
       // Remove optimistic slot on error
       setSlots(prev => prev.filter(slot => slot.id !== tempId))
       
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create slot'
+      let errorMessage = 'Failed to create slot'
+      let toastTitle = "Error creating slot"
+      
+      if (err instanceof SlotApiError) {
+        errorMessage = err.userMessage
+        
+        // Customize toast title based on error type
+        switch (err.code) {
+          case 'SLOT_CONFLICT':
+            toastTitle = "Time Conflict"
+            break
+          case 'DAILY_LIMIT_EXCEEDED':
+            toastTitle = "Daily Limit Reached"
+            break
+          case 'INVALID_TIME_RANGE':
+            toastTitle = "Invalid Time Range"
+            break
+          case 'NETWORK_ERROR':
+            toastTitle = "Connection Error"
+            break
+          default:
+            toastTitle = "Error creating slot"
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      
       setError(errorMessage)
       toast({
-        title: "Error creating slot",
+        title: toastTitle,
         description: errorMessage,
         variant: "destructive",
       })
       throw err
     }
-  }, [loadWeek, toast, api])
+  }, [loadWeek, toast, api, slots])
 
   const updateSlot = useCallback(async (id: string, update: SlotUpdateRequest) => {
     setError(null)
@@ -111,6 +186,49 @@ export function useSchedule(): UseScheduleResult {
     // Store original slot for rollback
     const originalSlot = slots.find(slot => slot.id === id)
     if (!originalSlot) return
+
+    // Client-side validation for update
+    if (update.start_time && update.end_time) {
+      const timeRangeResult = SlotValidator.validateTimeRange(update.start_time, update.end_time)
+      if (!timeRangeResult.isValid) {
+        const errorMessage = timeRangeResult.userMessage || timeRangeResult.error || 'Invalid time range'
+        setError(errorMessage)
+        toast({
+          title: "Invalid Time Range",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        
+        const validationError = new Error(errorMessage)
+        validationError.name = 'ValidationError'
+        throw validationError
+      }
+
+      // Check for conflicts with other slots on the same date
+      const slotsOnSameDate = slots.filter(slot => 
+        slot.date === update.date && slot.id !== id
+      )
+      
+      const conflictResult = SlotValidator.checkSlotConflict(
+        update.start_time,
+        update.end_time,
+        slotsOnSameDate
+      )
+      
+      if (!conflictResult.isValid) {
+        const errorMessage = conflictResult.userMessage || conflictResult.error || 'Time conflict'
+        setError(errorMessage)
+        toast({
+          title: "Time Conflict",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        
+        const validationError = new Error(errorMessage)
+        validationError.name = 'ValidationError'
+        throw validationError
+      }
+    }
     
     // Optimistic update
     const updatedSlot: TimeSlot = {
@@ -136,10 +254,32 @@ export function useSchedule(): UseScheduleResult {
       // Rollback on error
       setSlots(prev => prev.map(slot => slot.id === id ? originalSlot : slot))
       
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update slot'
+      let errorMessage = 'Failed to update slot'
+      let toastTitle = "Error updating slot"
+      
+      if (err instanceof SlotApiError) {
+        errorMessage = err.userMessage
+        
+        switch (err.code) {
+          case 'SLOT_CONFLICT':
+            toastTitle = "Time Conflict"
+            break
+          case 'INVALID_TIME_RANGE':
+            toastTitle = "Invalid Time Range"
+            break
+          case 'NETWORK_ERROR':
+            toastTitle = "Connection Error"
+            break
+          default:
+            toastTitle = "Error updating slot"
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      
       setDateErrors(prev => new Map(prev).set(update.date, errorMessage))
       toast({
-        title: "Error updating slot",
+        title: toastTitle,
         description: errorMessage,
         variant: "destructive",
       })
@@ -168,10 +308,30 @@ export function useSchedule(): UseScheduleResult {
       // Rollback on error
       setSlots(prev => [...prev, originalSlot])
       
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete slot'
+      let errorMessage = 'Failed to delete slot'
+      let toastTitle = "Error deleting slot"
+      
+      if (err instanceof SlotApiError) {
+        errorMessage = err.userMessage
+        
+        switch (err.code) {
+          case 'NOT_FOUND':
+            toastTitle = "Slot Not Found"
+            errorMessage = "The slot you're trying to delete no longer exists."
+            break
+          case 'NETWORK_ERROR':
+            toastTitle = "Connection Error"
+            break
+          default:
+            toastTitle = "Error deleting slot"
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      
       setDateErrors(prev => new Map(prev).set(date, errorMessage))
       toast({
-        title: "Error deleting slot",
+        title: toastTitle,
         description: errorMessage,
         variant: "destructive",
       })
@@ -187,6 +347,28 @@ export function useSchedule(): UseScheduleResult {
   const canAddSlot = useCallback((date: Date): boolean => {
     const daySlots = getSlotsForDate(date)
     return daySlots.length < 2
+  }, [getSlotsForDate])
+
+  // Enhanced function to check if a specific time slot can be added
+  const canAddSlotAtTime = useCallback((date: Date, startTime: string, endTime: string): { canAdd: boolean; reason?: string } => {
+    const daySlots = getSlotsForDate(date)
+    const dayOfWeek = date.getDay()
+    
+    const validationResult = SlotValidator.validateSlotCreation(
+      startTime,
+      endTime,
+      dayOfWeek,
+      daySlots,
+      {
+        maxSlotsPerDay: 2,
+        enforceBusinessHours: true
+      }
+    )
+    
+    return {
+      canAdd: validationResult.isValid,
+      reason: validationResult.userMessage || validationResult.error
+    }
   }, [getSlotsForDate])
 
   const getErrorForDate = useCallback((date: Date): string | null => {
@@ -210,6 +392,7 @@ export function useSchedule(): UseScheduleResult {
     deleteSlot,
     getSlotsForDate,
     canAddSlot,
+    canAddSlotAtTime,
     getErrorForDate,
   }
 }
