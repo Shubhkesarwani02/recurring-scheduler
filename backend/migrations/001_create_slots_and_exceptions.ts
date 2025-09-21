@@ -26,14 +26,14 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.uuid('slot_id').references('id').inTable('slots').onDelete('CASCADE')
     table.date('date').notNullable() // YYYY-MM-DD format
-    table.string('exception_type').notNullable() // 'update' or 'delete'
-    table.string('start_time', 5).nullable() // Only for 'update' type
-    table.string('end_time', 5).nullable() // Only for 'update' type
+    table.string('exception_type').notNullable() // 'updated' or 'deleted'
+    table.string('start_time', 5).nullable() // Only for 'updated' type
+    table.string('end_time', 5).nullable() // Only for 'updated' type
     table.timestamps(true, true)
     
     // Constraints
-    table.check("?? IN ('update', 'delete')", ['exception_type'])
-    table.check("(?? = 'delete') OR (?? IS NOT NULL AND ?? IS NOT NULL)", 
+    table.check("?? IN ('updated', 'deleted')", ['exception_type'])
+    table.check("(?? = 'deleted') OR (?? IS NOT NULL AND ?? IS NOT NULL)", 
                 ['exception_type', 'start_time', 'end_time'])
     table.check("?? IS NULL OR ?? ~ '^[0-2][0-9]:[0-5][0-9]$'", ['start_time', 'start_time'])
     table.check("?? IS NULL OR ?? ~ '^[0-2][0-9]:[0-5][0-9]$'", ['end_time', 'end_time'])

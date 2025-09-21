@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { SlotService } from '../services/slotService';
-import { CreateSlotRequest, UpdateSlotRequest } from '../types/slot';
+import { CreateSlotRequest, UpdateSlotRequest, SlotDeleteRequest } from '../types/slot';
 
 export class SlotController {
   static async getSlots(req: Request, res: Response): Promise<void> {
@@ -133,7 +133,7 @@ export class SlotController {
   static async deleteSlot(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { date } = req.body;
+      const { date }: SlotDeleteRequest = req.body;
       
       if (!id) {
         res.status(400).json({

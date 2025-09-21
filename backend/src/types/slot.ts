@@ -38,3 +38,7 @@ export interface UpdateSlotRequest {
   start_time?: string;
   end_time?: string;
 }
+
+export interface SlotDeleteRequest {
+  date: string;        // YYYY-MM-DD format
+}
